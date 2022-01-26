@@ -1,0 +1,11 @@
+[Unit]
+Description=PWM Fan Control
+
+[Service]
+Type=simple
+User=pi
+ExecStart=/usr/bin/python3 /home/pi/scripts/fanctl/fanctl.py
+Restart=always
+
+[Install]
+WantedBy=default.target
