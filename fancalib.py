@@ -39,23 +39,11 @@ def runFuncOrExit(printMsg, callBack, *args, **kwargs):
         print('\t\t..failed')
         sys.exit()
 
-
-def createFileBackupIfExists(filename, backupFileName):
-    if not op.isfile(filename):
-        return False
-
-    print('\t> {0} already exists. Backing up..'.format(filename), end='')
-    postfix = 0
-    while op.isfile(backupFileName + str(postfix if postfix else '')):
-        postfix += 1
-    bpFile = backupFileName + str(postfix if postfix else '')
-    if tryRunFunc(os.rename, filename, bpFile):
-        print('done: {0}'.format(bpFile))
-        return True
-    return False
-
 def generateService():
-    createFileBackupIfExists('fanctl.service', 'fanctl.service.backup')
+    if op.isfile('fanctl.service'):
+        inp = input('\t> File {0} already exists. Overwrite? [yN]: '.format(op.abspath('fanctl.service')))
+        if inp.lower() != 'y':
+            sys.exit()
     def createServiceFile():
         with open('fanctl.service', 'w') as file:
             file.write("""\
@@ -74,8 +62,13 @@ WantedBy=default.target
     return tryRunFunc(createServiceFile)
 
 def createServiceLink():
-    createFileBackupIfExists('/etc/systemd/system/fanctl.service', '/etc/systemd/system/fanctl.service.backup')
-    return tryRunFunc(os.symlink, op.abspath(op.join(os.getcwd(), 'fanctl.service')), '/etc/systemd/system/fanctl.service')
+    systemServiceLink = op.abspath('/etc/systemd/system/fanctl.service')
+    if op.isfile(systemServiceLink):
+        inp = input('\t> File {0} already exists. Overwrite? [yN]: '.format(systemServiceLink))
+        if inp.lower() != 'y':
+            sys.exit()
+        tryRunFunc(os.remove, systemServiceLink)
+    return tryRunFunc(os.symlink, op.abspath(op.join(os.getcwd(), 'fanctl.service')), systemServiceLink)
 
 def enableService():
     return tryRunFunc(subprocess.check_output, 'systemctl enable fanctl.service', shell=True)
@@ -91,7 +84,9 @@ if __name__ == '__main__':
         root = False
 
     fanPin = None
-    pwmFreq = 60
+    pwmFreq = 200
+
+    # TODO: Load values from fanctl.service if possible
 
     # Fan GPIO pin
     if len(sys.argv) > 1:
@@ -127,10 +122,10 @@ if __name__ == '__main__':
 
 
     # Minimum spinning value
-    print('>>> First calibrate minimum starting speed of your fan. Find the minimum value (between 0 and 100) when the fan reliebly does not stop spinning. Enter R when ready.')
+    print('>>> First calibrate minimum starting speed of your fan. Find the minimum value (between 0 and 100) when the fan reliebly does not stop spinning. Enter Y when ready.')
     while 1:
         inp = input('Fan Speed: ')
-        if inp.lower() == 'r':
+        if inp.lower() == 'y':
             break
         if inp.lower() == '':
             continue
@@ -149,10 +144,10 @@ if __name__ == '__main__':
 
 
     # Most quiet frequency
-    print('>>> Next find the most quiet frequency. Try different values bigger than 0. Current value: {0}. Enter R when ready. Enter A to automatically run fan from minimum to maximum speed.'.format(pwmFreq))
+    print('>>> Next find the most quiet frequency. Try different values bigger than 0. Current value: {0}. Enter Y when ready. Enter A to automatically run fan from minimum to maximum speed.'.format(pwmFreq))
     while 1:
         inp = input('Fan Freq: ')
-        if inp.lower() == 'r':
+        if inp.lower() == 'y':
             break
         if inp.lower() == '':
             continue
