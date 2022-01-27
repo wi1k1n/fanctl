@@ -50,9 +50,13 @@ def readTemperature():
         temp = float(f.read()) * 1e-3
     return temp
 
-def setFanSpeed(tThresholds, sThresholds, state):
+def setFanSpeed(fan, tThresholds, sThresholds, state):
     newSpeed = getSpeedForTempThreshold(tThresholds, sThresholds, state)
     print('Set speed to {0}%'.format(newSpeed))
+
+    if newSpeed > 0:
+        fan.ChangeDutyCycle(100)
+    time.sleep(0.1)
     fan.ChangeDutyCycle(newSpeed)
 
 
@@ -64,18 +68,16 @@ if __name__ == '__main__':
     TEMP_THRESHOLDS = [50, 55, 65]  # [°C]
     SPEED_THRESHOLDS = [0, 50, 100]  # [%]
 
-    if len(sys.argv) < 4:
+    if len(sys.argv) < 3:
         wrongArgsExit()
     
     fanPin = tryParseInt(sys.argv[1])  # GPIO.BCM pin
-    fanMinSpeed = tryParseInt(sys.argv[2])  # [%]
-    fanPWM = tryParseInt(sys.argv[3])  # [Hz]
+    fanPWM = tryParseInt(sys.argv[2])  # [Hz]
 
-    if any([v is None for v in [fanPin, fanMinSpeed, fanPWM]]) or not between(fanMinSpeed, 0, 100) or not between(fanPWM, 1):
+    if any([v is None for v in [fanPin, fanPWM]]) or not between(fanPWM, 1):
         wrongArgsExit()
 
     print('FAN_PIN:', fanPin)
-    print('MIN_SPEED:', fanMinSpeed)
     print('PWM_FREQ:', fanPWM)
 
     # Setup GPIO pin
@@ -90,7 +92,7 @@ if __name__ == '__main__':
 
     temp = readTemperature()
     lastThresholdState = getThresholdState(TEMP_THRESHOLDS, temp)
-    setFanSpeed(TEMP_THRESHOLDS, SPEED_THRESHOLDS, lastThresholdState)
+    setFanSpeed(fan, TEMP_THRESHOLDS, SPEED_THRESHOLDS, lastThresholdState)
 
     try:
         while 1:
@@ -100,11 +102,11 @@ if __name__ == '__main__':
             if curThresholdState > lastThresholdState:
                 lastThresholdState = curThresholdState
                 print('Temp: {0} | '.format(temp), end='')
-                setFanSpeed(TEMP_THRESHOLDS, SPEED_THRESHOLDS, lastThresholdState)
+                setFanSpeed(fan, TEMP_THRESHOLDS, SPEED_THRESHOLDS, lastThresholdState)
             elif lastThresholdState - curThresholdState > 1:
                 lastThresholdState = curThresholdState + 1
                 print('Temp: {0} | '.format(temp), end='')
-                setFanSpeed(TEMP_THRESHOLDS, SPEED_THRESHOLDS, lastThresholdState)
+                setFanSpeed(fan, TEMP_THRESHOLDS, SPEED_THRESHOLDS, lastThresholdState)
             time.sleep(WAIT_TIME)
 
     except KeyboardInterrupt:
